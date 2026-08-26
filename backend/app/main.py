@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.auth import get_current_user
+from app.routers import profile, matches
 
 app = FastAPI(title="Job-Hunt Autopilot API", version="0.1.0")
 
@@ -14,6 +15,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(profile.router)
+app.include_router(matches.router)
+
 
 @app.get("/health")
 async def health():
@@ -23,9 +27,5 @@ async def health():
 
 @app.get("/me")
 async def me(user: dict = Depends(get_current_user)):
-    """
-    Authenticated — confirms the full chain works:
-    frontend login -> Supabase JWT -> this backend verifying it -> per-user identity.
-    Every other route in this app should follow this exact pattern.
-    """
+    """Authenticated — confirms the full auth chain works."""
     return {"user": user}

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Login — Job-Hunt Autopilot</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 60px auto; padding: 0 20px; }
+    input { display: block; width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+    button { padding: 8px 16px; margin: 4px 4px 4px 0; cursor: pointer; }
+    textarea { width: 100%; height: 120px; margin-top: 16px; font-family: monospace; font-size: 12px; }
+    #status { margin-top: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Test Login</h2>
+  <p>Use this only for local testing. Not part of the real app.</p>
+
+  <!-- Fill these in from your backend/.env -->
+  <script>
+    const SUPABASE_URL = "https://bcejnvkvmngdasctagre.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjZWpudmt2bW5nZGFzY3RhZ3JlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc2Nzc3NTIsImV4cCI6MjEwMzI1Mzc1Mn0.Fl6h82QhPmQWfagDbwN2mdEJtAr_6-sMhuqe7YOAuwc";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
+
+  <input id="email" type="email" placeholder="test@example.com" />
+  <input id="password" type="password" placeholder="password (min 6 chars)" />
+
+  <button onclick="signUp()">Sign Up (first time only)</button>
+  <button onclick="logIn()">Log In</button>
+
+  <div id="status"></div>
+  <textarea id="token" readonly placeholder="Your JWT will appear here after login..."></textarea>
+
+  <script>
+    async function signUp() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabaseClient.auth.signUp({ email, password });
+      document.getElementById('status').innerText = error ? "Error: " + error.message : "Signed up! Now click Log In.";
+    }
+
+    async function logIn() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        document.getElementById('status').innerText = "Error: " + error.message;
+        return;
+      }
+      document.getElementById('status').innerText = "Logged in! Copy the token below.";
+      document.getElementById('token').value = data.session.access_token;
+    }
+  </script>
+</body>
+</html>
