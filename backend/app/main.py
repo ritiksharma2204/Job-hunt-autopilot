@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.auth import get_current_user
 from app.routers import profile, matches
+from app.routers import profile, matches, jobs
 
 app = FastAPI(title="Job-Hunt Autopilot API", version="0.1.0")
 
@@ -17,6 +18,7 @@ app.add_middleware(
 
 app.include_router(profile.router)
 app.include_router(matches.router)
+app.include_router(jobs.router)
 
 
 @app.get("/health")

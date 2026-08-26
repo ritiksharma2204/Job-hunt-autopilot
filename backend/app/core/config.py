@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Job data
     ADZUNA_APP_ID: str = ""
     ADZUNA_APP_KEY: str = ""
+    ADZUNA_COUNTRY: str = "in"  # ISO country code — "in" for India, "gb" for UK, "us" for US, etc.
 
     # CORS — comma-separated list of allowed frontend origins
     ALLOWED_ORIGINS: str = "http://localhost:3000"
