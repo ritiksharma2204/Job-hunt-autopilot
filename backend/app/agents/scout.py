@@ -13,13 +13,24 @@ from app.core.supabase_client import service_client
 ADZUNA_BASE_URL = "https://api.adzuna.com/v1/api/jobs"
 
 
-def search_jobs(what: str, where: str = "", results_per_page: int = 10) -> list[dict]:
+def search_jobs(
+    what: str,
+    where: str = "",
+    country: str = "",
+    results_per_page: int = 10,
+) -> list[dict]:
     """
     Calls Adzuna's search endpoint, upserts each result into the `jobs`
     table (deduped by external_id so re-running the same search doesn't
     create duplicates), and returns the normalized list.
+
+    `country` is an ISO code (e.g. "in", "us", "gb") — Adzuna's API is
+    scoped by country per-call, so this determines which job market gets
+    searched. Falls back to settings.ADZUNA_COUNTRY if not provided, so
+    existing callers (and the default UX) keep working unchanged.
     """
-    url = f"{ADZUNA_BASE_URL}/{settings.ADZUNA_COUNTRY}/search/1"
+    country = country or settings.ADZUNA_COUNTRY
+    url = f"{ADZUNA_BASE_URL}/{country}/search/1"
     params = {
         "app_id": settings.ADZUNA_APP_ID,
         "app_key": settings.ADZUNA_APP_KEY,
@@ -43,6 +54,7 @@ def search_jobs(what: str, where: str = "", results_per_page: int = 10) -> list[
             "location": (job.get("location") or {}).get("display_name", ""),
             "description": job.get("description", ""),
             "url": job.get("redirect_url", ""),
+            "country": country,
         }
         # Upsert so re-searching the same jobs updates rather than duplicates them.
         result = (

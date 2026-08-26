@@ -11,6 +11,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 class SearchJobsRequest(BaseModel):
     what: str          # e.g. "backend engineer"
     where: str = ""    # e.g. "Delhi" — optional
+    country: str = ""  # ISO code e.g. "in", "us", "gb" — optional, defaults to ADZUNA_COUNTRY
 
 
 @router.post("/search")
@@ -21,10 +22,11 @@ async def trigger_job_search(
     """
     Runs the Scout agent: searches Adzuna and caches results in the shared
     `jobs` table. Any logged-in user can trigger a search — results benefit
-    everyone since jobs aren't per-user data.
+    everyone since jobs aren't per-user data. `country` lets each user
+    search their own job market rather than assuming a single default.
     """
     try:
-        jobs = search_jobs(what=body.what, where=body.where)
+        jobs = search_jobs(what=body.what, where=body.where, country=body.country)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scout agent failed: {str(e)}")
     return {"count": len(jobs), "jobs": jobs}
