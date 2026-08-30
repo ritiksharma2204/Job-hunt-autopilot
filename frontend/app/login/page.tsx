@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [status, setStatus] = useState<string | null>(null);
+  const [statusType, setStatusType] = useState<"error" | "success">("error");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -17,21 +18,37 @@ export default function LoginPage() {
     setLoading(true);
     setStatus(null);
 
-    const result =
-      mode === "login"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+    if (mode === "login") {
+      const result = await supabase.auth.signInWithPassword({ email, password });
+      setLoading(false);
+      if (result.error) {
+        setStatusType("error");
+        setStatus(result.error.message);
+        return;
+      }
+      router.push("/dashboard");
+      return;
+    }
 
+    // Signup
+    const result = await supabase.auth.signUp({ email, password });
     setLoading(false);
 
     if (result.error) {
+      setStatusType("error");
       setStatus(result.error.message);
       return;
     }
 
-    if (mode === "signup") {
-      setStatus("Account created - you're now logged in.");
+    if (!result.data.session) {
+      // Email confirmation is required - there's no session yet, so don't redirect.
+      setStatusType("success");
+      setStatus("Account created! Check your email for a confirmation link before logging in.");
+      setMode("login");
+      return;
     }
+
+    // Some Supabase projects have email confirmation disabled - session exists immediately.
     router.push("/dashboard");
   }
 
@@ -70,7 +87,11 @@ export default function LoginPage() {
             placeholder="password"
           />
 
-          {status && <p className="mb-4 text-xs text-signal-coral">{status}</p>}
+          {status && (
+            <p className={`mb-4 text-xs ${statusType === "success" ? "text-signal-teal" : "text-signal-coral"}`}>
+              {status}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -82,7 +103,10 @@ export default function LoginPage() {
         </form>
 
         <button
-          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          onClick={() => {
+            setMode(mode === "login" ? "signup" : "login");
+            setStatus(null);
+          }}
           className="mt-4 w-full text-center text-sm text-fog-300 hover:text-amber-400"
         >
           {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Log in"}
