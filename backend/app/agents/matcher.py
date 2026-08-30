@@ -3,11 +3,8 @@ The Matcher agent, as a LangGraph state graph with three nodes:
 
   fetch_context -> score_fit -> save_result
 
-Why a graph instead of one function: this is the shape that scales —
-adding a step later means adding a node and an edge, not rewriting a
-monolithic function. It's also what makes the "multi-agent orchestration"
-resume claim genuinely true rather than just a single LLM call with a
-fancy name.
+Takes a specific resume_id (not just "whatever the user's profile says") so
+a user can compare how different resumes score against the same job.
 """
 from typing import TypedDict
 from langgraph.graph import StateGraph, END
@@ -31,6 +28,7 @@ exact shape:
 class MatchState(TypedDict):
     user_id: str
     job_id: str
+    resume_id: str
     skill_profile: dict
     job_title: str
     job_description: str
@@ -40,11 +38,10 @@ class MatchState(TypedDict):
 
 
 def fetch_context(state: MatchState) -> MatchState:
-    """Load the user's skill profile and the job description from Supabase."""
-    profile_res = (
-        service_client.table("profiles")
+    resume_res = (
+        service_client.table("resumes")
         .select("skill_profile")
-        .eq("id", state["user_id"])
+        .eq("id", state["resume_id"])
         .single()
         .execute()
     )
@@ -56,14 +53,13 @@ def fetch_context(state: MatchState) -> MatchState:
         .execute()
     )
 
-    state["skill_profile"] = profile_res.data["skill_profile"]
+    state["skill_profile"] = resume_res.data["skill_profile"]
     state["job_title"] = job_res.data["title"]
     state["job_description"] = job_res.data["description"]
     return state
 
 
 def score_fit(state: MatchState) -> MatchState:
-    """Ask the LLM to score fit and identify gaps."""
     result = call_llm_json(
         system_prompt=SCORE_SYSTEM_PROMPT,
         user_prompt=(
@@ -79,16 +75,16 @@ def score_fit(state: MatchState) -> MatchState:
 
 
 def save_result(state: MatchState) -> MatchState:
-    """Persist the match — upsert so re-running a match updates it instead of duplicating."""
     service_client.table("matches").upsert(
         {
             "user_id": state["user_id"],
             "job_id": state["job_id"],
+            "resume_id": state["resume_id"],
             "fit_score": state["fit_score"],
             "skill_gaps": state["skill_gaps"],
             "reasoning": state["reasoning"],
         },
-        on_conflict="user_id,job_id",
+        on_conflict="resume_id,job_id",
     ).execute()
     return state
 
@@ -110,8 +106,10 @@ def build_matcher_graph():
 matcher_graph = build_matcher_graph()
 
 
-def run_matcher(user_id: str, job_id: str) -> dict:
-    result = matcher_graph.invoke({"user_id": user_id, "job_id": job_id})
+def run_matcher(user_id: str, job_id: str, resume_id: str) -> dict:
+    result = matcher_graph.invoke(
+        {"user_id": user_id, "job_id": job_id, "resume_id": resume_id}
+    )
     return {
         "fit_score": result["fit_score"],
         "skill_gaps": result["skill_gaps"],

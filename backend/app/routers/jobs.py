@@ -2,16 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.auth import get_current_user
-from app.core.supabase_client import anon_client
+from app.core.supabase_client import service_client
 from app.agents.scout import search_jobs
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
 class SearchJobsRequest(BaseModel):
-    what: str          # e.g. "backend engineer"
-    where: str = ""    # e.g. "Delhi" — optional
-    country: str = ""  # ISO code e.g. "in", "us", "gb" — optional, defaults to ADZUNA_COUNTRY
+    what: str
+    where: str = ""
+    country: str = ""
 
 
 @router.post("/search")
@@ -19,12 +19,6 @@ async def trigger_job_search(
     body: SearchJobsRequest,
     user: dict = Depends(get_current_user),
 ):
-    """
-    Runs the Scout agent: searches Adzuna and caches results in the shared
-    `jobs` table. Any logged-in user can trigger a search — results benefit
-    everyone since jobs aren't per-user data. `country` lets each user
-    search their own job market rather than assuming a single default.
-    """
     try:
         jobs = search_jobs(what=body.what, where=body.where, country=body.country)
     except Exception as e:
@@ -34,13 +28,8 @@ async def trigger_job_search(
 
 @router.get("")
 async def list_cached_jobs(user: dict = Depends(get_current_user)):
-    """
-    Returns whatever's already cached in the jobs table, most recent first —
-    this is what a 'browse jobs' screen in the frontend will call, without
-    triggering a fresh (rate-limited) Adzuna call every time.
-    """
     result = (
-        anon_client.table("jobs")
+        service_client.table("jobs")
         .select("*")
         .order("fetched_at", desc=True)
         .limit(50)
