@@ -15,7 +15,7 @@ class SearchJobsRequest(BaseModel):
 
 
 @router.post("/search")
-async def trigger_job_search(
+def trigger_job_search(
     body: SearchJobsRequest,
     user: dict = Depends(get_current_user),
 ):
@@ -27,7 +27,7 @@ async def trigger_job_search(
 
 
 @router.get("")
-async def list_cached_jobs(user: dict = Depends(get_current_user)):
+def list_cached_jobs(user: dict = Depends(get_current_user)):
     result = (
         service_client.table("jobs")
         .select("*")

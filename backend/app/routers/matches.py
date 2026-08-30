@@ -14,7 +14,7 @@ class GenerateMatchRequest(BaseModel):
 
 
 @router.post("/generate")
-async def generate_match(
+def generate_match(
     body: GenerateMatchRequest,
     user: dict = Depends(get_current_user),
 ):

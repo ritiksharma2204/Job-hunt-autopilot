@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from fastapi.concurrency import run_in_threadpool
 
 from app.core.auth import get_current_user
 from app.core.resume_parser import extract_resume_text
@@ -9,7 +10,7 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 
 
 @router.get("")
-async def get_profile(user: dict = Depends(get_current_user)):
+def get_profile(user: dict = Depends(get_current_user)):
     result = (
         service_client.table("profiles")
         .select("active_resume_id")
@@ -22,7 +23,7 @@ async def get_profile(user: dict = Depends(get_current_user)):
 
 
 @router.get("/resumes")
-async def list_resumes(user: dict = Depends(get_current_user)):
+def list_resumes(user: dict = Depends(get_current_user)):
     result = (
         service_client.table("resumes")
         .select("id, label, skill_profile, created_at")
@@ -33,23 +34,16 @@ async def list_resumes(user: dict = Depends(get_current_user)):
     return {"resumes": result.data}
 
 
-@router.post("/resumes")
-async def upload_resume(
-    file: UploadFile = File(...),
-    label: str = Form(None),
-    user: dict = Depends(get_current_user),
-):
-    file_bytes = await file.read()
-    resume_text = extract_resume_text(file.filename, file_bytes)
+def _process_and_save_resume(user_id: str, filename: str, file_bytes: bytes, label: str | None) -> dict:
+    resume_text = extract_resume_text(filename, file_bytes)
     skill_profile = extract_skill_profile(resume_text)
-
-    resume_label = label or file.filename
+    resume_label = label or filename
 
     result = (
         service_client.table("resumes")
         .insert(
             {
-                "user_id": user["id"],
+                "user_id": user_id,
                 "label": resume_label,
                 "resume_text": resume_text,
                 "skill_profile": skill_profile,
@@ -62,21 +56,33 @@ async def upload_resume(
     profile_res = (
         service_client.table("profiles")
         .select("active_resume_id")
-        .eq("id", user["id"])
+        .eq("id", user_id)
         .maybe_single()
         .execute()
     )
     has_active = profile_res.data and profile_res.data.get("active_resume_id")
     if not has_active:
         service_client.table("profiles").upsert(
-            {"id": user["id"], "active_resume_id": new_resume["id"]}
+            {"id": user_id, "active_resume_id": new_resume["id"]}
         ).execute()
 
     return new_resume
 
 
+@router.post("/resumes")
+async def upload_resume(
+    file: UploadFile = File(...),
+    label: str = Form(None),
+    user: dict = Depends(get_current_user),
+):
+    file_bytes = await file.read()
+    return await run_in_threadpool(
+        _process_and_save_resume, user["id"], file.filename, file_bytes, label
+    )
+
+
 @router.patch("/resumes/{resume_id}/activate")
-async def activate_resume(resume_id: str, user: dict = Depends(get_current_user)):
+def activate_resume(resume_id: str, user: dict = Depends(get_current_user)):
     owned = (
         service_client.table("resumes")
         .select("id")
@@ -95,7 +101,7 @@ async def activate_resume(resume_id: str, user: dict = Depends(get_current_user)
 
 
 @router.delete("/resumes/{resume_id}")
-async def delete_resume(resume_id: str, user: dict = Depends(get_current_user)):
+def delete_resume(resume_id: str, user: dict = Depends(get_current_user)):
     result = (
         service_client.table("resumes")
         .delete()

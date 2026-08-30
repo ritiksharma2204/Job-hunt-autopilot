@@ -19,7 +19,7 @@ class UpdateApplicationRequest(BaseModel):
 
 
 @router.post("")
-async def create_application(
+def create_application(
     body: CreateApplicationRequest,
     user: dict = Depends(get_current_user),
 ):
@@ -38,7 +38,7 @@ async def create_application(
 
 
 @router.get("")
-async def list_applications(user: dict = Depends(get_current_user)):
+def list_applications(user: dict = Depends(get_current_user)):
     result = (
         service_client.table("applications")
         .select("*, jobs(*)")
@@ -50,7 +50,7 @@ async def list_applications(user: dict = Depends(get_current_user)):
 
 
 @router.patch("/{application_id}")
-async def update_application_status(
+def update_application_status(
     application_id: str,
     body: UpdateApplicationRequest,
     user: dict = Depends(get_current_user),
