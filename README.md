@@ -1,61 +1,88 @@
 # Job-Hunt Autopilot Agent
 
-Multi-agent, multi-tenant system that scouts job postings, scores fit against a
-user's resume, surfaces skill gaps, and tracks applications.
+A multi-agent, multi-tenant system that scouts job postings, scores fit
+against a user's resume using an LLM, surfaces skill gaps, and tracks
+applications through a pipeline dashboard.
 
-Days 1-3 status: **auth + deployment skeleton**. `/health` is public,
-`/me` is the first protected route proving the full chain: frontend login →
-Supabase JWT → backend verification → per-user identity.
+**Live app:** https://your-vercel-url.vercel.app
+**API health check:** https://your-render-url.onrender.com/health
 
-## Stack
-- Backend: FastAPI (Python)
-- Auth + DB + Vector store: Supabase (Postgres + pgvector + Auth)
-- LLM: Groq
-- Job data: Adzuna API
-- Backend hosting: Render (free tier)
-- Frontend: Next.js + Tailwind, hosted on Vercel (added in Days 4+)
+> Free-tier hosting note: the backend sleeps after 15 minutes of
+> inactivity and takes 30-50 seconds to wake on the first request. If the
+> live demo looks slow on first load, that's why - refresh after ~1 minute.
 
-## One-time setup (do this before anything else)
+---
 
-### 1. Create a Supabase project
-1. Go to supabase.com → New project (free tier).
-2. Once created, go to **SQL Editor** → paste the contents of `supabase/schema.sql` → Run.
-   This creates every table with Row Level Security already enabled.
-3. Go to **Project Settings → API** and copy three values — you'll need them in step 3:
-   - `Project URL` → this is `SUPABASE_URL`
-   - `anon public` key → this is `SUPABASE_ANON_KEY`
-   - `service_role` key → this is `SUPABASE_SERVICE_ROLE_KEY` (keep this one secret, never share it)
+## What it does
 
-### 2. Get a Groq API key (free)
-Go to console.groq.com → API Keys → create one.
+- **Upload multiple resumes** and pick which one is active for matching
+  against jobs (a user can compare how different resumes score against
+  the same posting)
+- **Search real job postings** via the Adzuna API, scoped to any country
+- **Score fit automatically** - an LLM-backed agent scores each job
+  against your active resume's skill profile and surfaces specific skill
+  gaps, not just a number
+- **Track applications** through a status pipeline (saved -> applied ->
+  interviewing -> offer / rejected) in a live dashboard
+- **Multi-tenant from the ground up** - every user's data (resumes,
+  matches, applications) is isolated via Postgres Row Level Security, not
+  just filtered in application code
 
-### 3. Get Adzuna API credentials (free)
-Go to developer.adzuna.com → register → you'll get an `app_id` and `app_key`.
+## Architecture
 
-### 4. Configure local backend
+Three agents, each a distinct responsibility, orchestrated rather than
+hardcoded as one script:
+
+| Agent | What it does | How |
+|---|---|---|
+| **Scout** | Searches Adzuna for jobs, caches results | Direct API integration + Supabase upsert (deduped by external job ID) |
+| **Matcher** | Scores a specific resume against a specific job, extracts skill gaps | **LangGraph** state graph: `fetch_context -> score_fit -> save_result` |
+| **Tracker** | Manages the user's application pipeline | CRUD over a Postgres table, RLS-scoped per user |
+
+## Tech stack
+
+- **Backend:** FastAPI (Python)
+- **Agent orchestration:** LangGraph
+- **LLM:** Groq (`openai/gpt-oss-120b`)
+- **Database, Auth, Row Level Security:** Supabase (Postgres)
+- **Job data:** Adzuna API
+- **Frontend:** Next.js 16, React 19, Tailwind CSS
+- **Hosting:** Render (backend), Vercel (frontend) - both free tier
+- **Load testing:** k6
+
+## Screenshots
+
+<!-- Add screenshots here: login page, dashboard with a scored job, tracker pipeline -->
+
+## Local development
+
+See [`backend/README.md`](backend/README.md) for backend setup (Supabase
+schema, environment variables, running locally, deploying to Render).
+
+Frontend:
 ```bash
-cd backend
-cp .env.example .env
-# open .env and paste in the values from steps 1-3
-python -m venv venv
-source venv/bin/activate   # on Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+cd frontend
+npm install
+cp .env.example .env.local   # fill in your Supabase + backend API URL
+npm run dev
 ```
-Visit `http://localhost:8000/health` — you should see `{"status": "ok"}`.
 
-### 5. Deploy the backend to Render
-1. Push this repo to GitHub.
-2. On render.com → New → Blueprint → connect your repo → it will detect `render.yaml`.
-3. When prompted, paste in the same env values from your `.env` file.
-4. Deploy. You'll get a live URL like `https://job-hunt-autopilot-api.onrender.com`.
-5. Visit `<your-render-url>/health` to confirm it's live.
+## Load testing
 
-Note: free tier sleeps after 15 min idle — first request after sleep takes ~30-50s.
-When demoing, hit `/health` a minute before to "wake it up."
+Full methodology, results, and a real bug found and fixed via load
+testing (a concurrency issue that took p95 latency from 21.4s down to
+1.44s under 30 concurrent users) are documented in
+[`load-tests/README.md`](load-tests/README.md).
 
-## What's next (Days 4-14)
-- Resume upload + Matcher agent (LangGraph + Groq)
-- Scout agent (Adzuna integration)
-- In-app Tracker dashboard (Next.js, deployed to Vercel)
-- Load testing + README write-up with real throughput numbers
+## Scaling notes
+
+This deployment intentionally runs on free infrastructure - that's a
+cost decision for a portfolio project, not a ceiling on the architecture.
+The system is designed stateless and multi-tenant from the start (Row
+Level Security per user, a queue-ready agent structure), which is what
+would actually let it scale horizontally. What it is **not** claiming is
+that it currently runs at production scale - see
+[`load-tests/README.md`](load-tests/README.md) for the honest breakdown
+of what would need to change (compute, LLM cost, job-data API limits,
+database tier) to get there.
+

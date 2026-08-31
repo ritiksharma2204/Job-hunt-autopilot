@@ -7,12 +7,12 @@ export function FitGauge({ score }: { score: number }) {
   const offset = circumference - (clamped / 100) * circumference;
 
   const color =
-    clamped >= 70 ? "#1F8A70" : clamped >= 40 ? "#E8A33D" : "#D6553D";
+    clamped >= 70 ? "#0E9F73" : clamped >= 40 ? "#EB9F3C" : "#E14B34";
 
   return (
     <div className="relative flex h-20 w-20 items-center justify-center shrink-0">
       <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
-        <circle cx="40" cy="40" r={radius} fill="none" stroke="#242C52" strokeWidth="6" />
+        <circle cx="40" cy="40" r={radius} fill="none" stroke="#E6E7F0" strokeWidth="6" />
         <circle
           cx="40"
           cy="40"

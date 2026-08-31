@@ -57,7 +57,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-amber-500/40 bg-amber-500/10">
-            <span className="font-mono text-sm font-semibold text-amber-400">JA</span>
+            <span className="font-mono text-sm font-semibold text-amber-600">JA</span>
           </div>
           <h1 className="font-display text-xl font-semibold text-fog-100">Job-Hunt Autopilot</h1>
           <p className="mt-1 text-sm text-fog-300">
@@ -96,7 +96,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-amber-500 py-2 text-sm font-semibold text-ink-950 transition hover:bg-amber-400 disabled:opacity-50"
+            className="w-full rounded-md bg-brand-600 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-500 disabled:opacity-50"
           >
             {loading ? "Please wait..." : mode === "login" ? "Log In" : "Sign Up"}
           </button>
@@ -107,7 +107,7 @@ export default function LoginPage() {
             setMode(mode === "login" ? "signup" : "login");
             setStatus(null);
           }}
-          className="mt-4 w-full text-center text-sm text-fog-300 hover:text-amber-400"
+          className="mt-4 w-full text-center text-sm text-fog-300 hover:text-amber-600"
         >
           {mode === "login" ? "Don't have an account? Sign up" : "Already have an account? Log in"}
         </button>
